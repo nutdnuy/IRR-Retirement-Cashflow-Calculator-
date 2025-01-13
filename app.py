@@ -75,14 +75,15 @@ if calculate:
             final_salary_displayed = True
 
         # Define cashflows
-        monthly_savings = (initial_salary * (contribution_rate + employer_contribution_rate)) / 12
+        monthly_savings = [(initial_salary * ((1 + salary_growth_rate) ** (month // 12)) * (contribution_rate + employer_contribution_rate)) / 12 
+                           for month in range(working_years * 12)]
         savings_df = pd.DataFrame({
             "Month": range(1, working_years * 12 + 1),
-            "Monthly_Savings": [monthly_savings] * (working_years * 12)
+            "Monthly_Savings": monthly_savings
         })
         cashflows = [-saving for saving in savings_df["Monthly_Savings"]]
         cashflows.append(total_present_value + initial_wealth)  # Add initial wealth to total present value
-
+        
         # Calculate IRR
         calculated_irr = npf.irr(cashflows)
         annualized_irr = ((1 + calculated_irr) ** 12) - 1
