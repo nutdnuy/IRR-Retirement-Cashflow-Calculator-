@@ -32,7 +32,7 @@ if calculate:
     def calculate_retirement_cashflow(initial_salary, initial_wealth, contribution_rate, employer_contribution_rate, salary_growth_rate, working_years, 
                                       replacement_cost, inflation_rate, discount_rate, 
                                       retire_age, retirement_months):
-        final_salary = initial_salary * ((1 + salary_growth_rate) ** working_years)
+        final_salary = initial_salary * ((1 + salary_growth_rate) ** (working_years-1))
         retirement_monthly_expenses = final_salary * replacement_cost
 
         adjusted_retirement_monthly_expenses = [
