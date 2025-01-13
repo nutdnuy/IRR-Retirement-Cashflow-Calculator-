@@ -11,15 +11,15 @@ with st.sidebar:
     start_age = st.number_input("Start Age", value=25, step=1)
     retire_age = st.number_input("Retirement Age", value=60, step=1)
     death_age = st.number_input("Death Age", value=80, step=1)
-    initial_salary = st.number_input("Initial Salary", value=25000, step=1000)
-    initial_wealth = st.number_input("Initial Wealth", value=200000, step=1000)
-    contribution_rate = st.slider("Contribution Rate (in %)", min_value=0.0, max_value=50.0, value=10.0, step=0.1) / 100
-    employer_contribution_rate = st.slider("Employer Contribution Rate (in %)", min_value=0.0, max_value=50.0, value=10.0, step=0.1) / 100
-    inflation_rate = st.slider("Inflation Rate (in %)", min_value=0.0, max_value=10.0, value=3.0, step=0.1) / 100
-    replacement_cost_lst = st.multiselect("Select Replacement Cost(s) (Fraction of Salary)", [10, 20, 30, 40, 50, 60, 70, 80], default=[10, 20,30, ])
+    initial_salary = st.number_input("Initial Salary", value=15000, step=1000)
+    initial_wealth = st.number_input("Initial Wealth", value=0, step=1000)
+    contribution_rate = st.slider("Contribution Rate (in %)", min_value=0.0, max_value=50.0, value=8.0, step=0.1) / 100
+    employer_contribution_rate = st.slider("Employer Contribution Rate (in %)", min_value=0.0, max_value=50.0, value=8.0, step=0.1) / 100
+    inflation_rate = st.slider("Inflation Rate (in %)", min_value=0.0, max_value=10.0, value=0.0, step=0.1) / 100
+    replacement_cost_lst = st.multiselect("Select Replacement Cost(s) (Fraction of Salary)", [15, 20, 25,  30,35,  40,45 ,  50,55,  60, 70, 80], default=[ 15, 20,25, 30, ])
     replacement_cost_lst = [x / 100 for x in replacement_cost_lst]  # Convert to fraction
-    salary_growth_rate = st.slider("Salary Growth Rate (in %)", min_value=0.0, max_value=10.0, value=5.0, step=0.1) / 100
-    discount_rate = st.slider("Discount Rate (in %)", min_value=0.0, max_value=10.0, value=3.0, step=0.1) / 100
+    salary_growth_rate = st.slider("Salary Growth Rate (in %)", min_value=0.0, max_value=10.0, value=7.5, step=0.1) / 100
+    discount_rate = st.slider("Return after Retire (in %)", min_value=0.0, max_value=10.0, value=0.0, step=0.1) / 100
     calculate = st.button("Submit")
 
 if calculate:
@@ -74,16 +74,28 @@ if calculate:
             st.write(f"Final Salary: {final_salary:,.2f}")
             final_salary_displayed = True
 
+
         # Define cashflows
-        monthly_savings = [(initial_salary * ((1 + salary_growth_rate) ** (month // 12)) * (contribution_rate + employer_contribution_rate)) / 12 
+        monthly_savings = [(initial_salary * ((1 + salary_growth_rate) ** (month // 12)) * (contribution_rate + employer_contribution_rate)) 
                            for month in range(working_years * 12)]
+
+
+
+
+
+
+        
         savings_df = pd.DataFrame({
             "Month": range(1, working_years * 12 + 1),
             "Monthly_Savings": monthly_savings
         })
+
+
+
+        
         cashflows = [-saving for saving in savings_df["Monthly_Savings"]]
         cashflows.append(total_present_value + initial_wealth)  # Add initial wealth to total present value
-        
+
         # Calculate IRR
         calculated_irr = npf.irr(cashflows)
         annualized_irr = ((1 + calculated_irr) ** 12) - 1
@@ -96,7 +108,11 @@ if calculate:
         })
 
     # Display results
-    results_df = pd.DataFrame(results)
+    results_df = pd.DataFrame(results) 
+
+    #  savings_df 
+    st.write(savings_df )
+    
     st.subheader("Results")
     st.write(results_df)
 
