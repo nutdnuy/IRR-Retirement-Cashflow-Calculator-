@@ -72,7 +72,6 @@ if calculate:
         if final_salary_displayed is None:
             st.subheader("Final Salary and Wealth Information")
             st.write(f"Final Salary: {final_salary:,.2f}")
-            st.write(f"Initial Salary / Initial Wealth: {initial_salary / initial_wealth:.2f}")
             final_salary_displayed = True
 
         # Define cashflows
