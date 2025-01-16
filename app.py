@@ -3,8 +3,39 @@ import pandas as pd
 import numpy_financial as npf
 import matplotlib.pyplot as plt
 
+# Calculate Probability of Breakeven (PoB)
+import scipy.stats as stats
+
 # Streamlit app
 st.title("Retirement Cashflow Calculator")
+
+# Load the uploaded CSV file to inspect its contents
+file_path = 'Asset return.csv'
+asset_return_data = pd.read_csv(file_path)
+asset_return_data["Port return"] = asset_return_data["Port return"].str.rstrip('%').astype(float) / 100
+asset_return_data["Port vol"] = asset_return_data["Port vol"].str.rstrip('%').astype(float) / 100
+
+
+
+# Define a function to calculate wealth with returns
+def calculate_wealth_with_return(monthly_savings, start_age, initial_wealth, asset_return_data):
+    cumulative_wealth = initial_wealth
+    wealth_with_return = []
+
+    for month in range(len(monthly_savings)):
+        age = start_age + (month // 12)
+        # Fetch the return for the current age
+        annual_return = asset_return_data.loc[asset_return_data["Age"] == age, "Port return"].values
+        monthly_return = annual_return[0] / 12 if len(annual_return) > 0 else 0
+
+        # Update cumulative wealth with monthly savings and return
+        cumulative_wealth = cumulative_wealth * (1 + monthly_return) + monthly_savings[month]
+        wealth_with_return.append(cumulative_wealth)
+
+    return wealth_with_return
+
+
+
 
 # Input values
 with st.sidebar:
@@ -27,6 +58,22 @@ if calculate:
     working_years = retire_age - start_age
     retirement_years = death_age - retire_age
     retirement_months = retirement_years * 12
+
+
+    filtered_asset_data = asset_return_data[asset_return_data["Age"] >= start_age]
+    # Calculate the average return for filtered data
+    average_return_filtered = filtered_asset_data["Port return"].mean()
+    st.write(f"Average model Portfolio Return (Start Age {start_age}): {average_return_filtered:.2%}")
+    average_vol_filtered = filtered_asset_data["Port vol"].mean()
+    st.write(f"Average model Portfolio volatility (Start Age {start_age}): {average_vol_filtered:.2%}")
+
+
+
+
+
+
+
+    
 
     # Function to calculate retirement cashflow
     def calculate_retirement_cashflow(initial_salary, initial_wealth, contribution_rate, employer_contribution_rate, salary_growth_rate, working_years, 
@@ -61,12 +108,15 @@ if calculate:
     # Run calculations for multiple replacement costs
     results = []
     final_salary_displayed = None
+    total_present_lst  = []
+    dic_adjusted_retirement_df =  {}
     for replacement_cost in replacement_cost_lst:
         adjusted_retirement_df, total_present_value, retirement_monthly_expenses, final_salary = calculate_retirement_cashflow(
             initial_salary, initial_wealth, contribution_rate, employer_contribution_rate, salary_growth_rate, working_years, 
             replacement_cost, inflation_rate, discount_rate, 
             retire_age, retirement_months
         )
+        dic_adjusted_retirement_df[replacement_cost] = adjusted_retirement_df
 
         # Display final salary and ratio only once
         if final_salary_displayed is None:
@@ -82,19 +132,30 @@ if calculate:
 
 
 
-
-
-        
+        # Add Age and Wealth columns to savings_df
         savings_df = pd.DataFrame({
             "Month": range(1, working_years * 12 + 1),
-            "Monthly_Savings": monthly_savings
+            "Monthly_Savings": monthly_savings,
+            "Age": [start_age + (month // 12) for month in range(working_years * 12)],
         })
+
+   
+        # Calculate cumulative wealth
+        savings_df["Wealth"] = savings_df["Monthly_Savings"].cumsum() + initial_wealth
+
+
+
+        # Add Wealth with Return
+        savings_df["Wealth_with_Return"] = calculate_wealth_with_return(
+            monthly_savings, start_age, initial_wealth, asset_return_data )
+
 
 
 
         
         cashflows = [-saving for saving in savings_df["Monthly_Savings"]]
         cashflows.append(total_present_value + initial_wealth)  # Add initial wealth to total present value
+        total_present_lst.append(total_present_value)
 
         # Calculate IRR
         calculated_irr = npf.irr(cashflows)
@@ -109,6 +170,8 @@ if calculate:
 
     # Display results
     results_df = pd.DataFrame(results) 
+    results_df["เงินที่ต้องมีก่อนเกษียณ"] = total_present_lst
+#    st.write(pd.DataFrame( total_present_lst ) )
 
     #  savings_df 
     st.write(savings_df )
@@ -123,3 +186,56 @@ if calculate:
     ax.set_ylabel("IRR (Annualized %)")
     ax.set_title("Retirement Monthly Expenses vs. IRR")
     st.pyplot(fig)
+
+    # Create tabs dynamically based on selected replacement costs
+    tabs = st.tabs([f"📈 {int(cost * 100)}% Replacement Cost" for cost in replacement_cost_lst])
+    
+    # Iterate through tabs and display relevant data
+    for i, cost in enumerate(replacement_cost_lst):
+        with tabs[i]:
+            st.subheader(f"Details for {int(cost * 100)}% Replacement Cost")
+            
+            # Filter the results for the specific replacement cost
+            result = results[i]
+            
+            st.write(f"Retirement Monthly Expenses: {result['Retirement Monthly Expenses']:,.2f}")
+            #st.write(f"IRR (Monthly): {result['IRR (Monthly']:.6f}")
+            st.write(f"IRR (Annualized %): {result['IRR (Annualized %)']:.2f}")
+
+            aa = (average_return_filtered *100) -  result['IRR (Annualized %)'] 
+            st.write(f"Return - IRR : {aa} %")
+
+            
+            # Using the cumulative distribution function (CDF) of the normal distribution
+            pob = stats.norm.cdf((average_return_filtered - aa) / average_vol_filtered )
+            pob_percentage = pob * 100  # Convert to percentage
+            #st.write(f"ความน่าจะเป็นในการบรรลุเป้าหมาย: {pob_percentage  } %")
+
+
+            
+            # If you want to show additional details like savings_df or adjusted_retirement_df
+            #st.write("Savings DataFrame:")
+            retirement = dic_adjusted_retirement_df[cost]
+
+            merged_df = pd.merge(savings_df, retirement, on='Age', how='outer')
+            merged_df = merged_df.fillna(method='ffill')
+            merged_df["Cumulative_PV_Cashflow"] =  merged_df["PV_Cashflow"].cumsum()
+            merged_df = merged_df.fillna(0)
+            merged_df["final Wealth"] =  merged_df["Wealth_with_Return"] -  merged_df["Cumulative_PV_Cashflow"] 
+            
+            
+            st.write(merged_df )
+
+
+            unique_a = merged_df.drop_duplicates(subset=['Age'], keep='first')
+            #st.write(unique_a )
+            fig, ax = plt.subplots()
+            ax.plot(unique_a ["Age"],unique_a ["final Wealth"])
+            ax.set_xlabel("Age")
+            ax.set_ylabel("final Wealth")
+            ax.set_title("final Wealth")
+            st.pyplot(fig)
+
+    
+            # Optional: Add any other details or visualizations specific to this replacement cost
+
