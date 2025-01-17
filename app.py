@@ -41,7 +41,7 @@ def calculate_wealth_with_return(monthly_savings, start_age, initial_wealth, ass
 with st.sidebar:
     start_age = st.number_input("Start Age", value=25, step=1)
     retire_age = st.number_input("Retirement Age", value=60, step=1)
-    death_age = st.number_input("Death Age", value=80, step=1)
+    death_age = st.number_input("Final age", value=80, step=1)
     initial_salary = st.number_input("Initial Salary", value=15000, step=1000)
     initial_wealth = st.number_input("Initial Wealth", value=0, step=1000)
     contribution_rate = st.slider("Contribution Rate (in %)", min_value=0.0, max_value=50.0, value=8.0, step=0.1) / 100
